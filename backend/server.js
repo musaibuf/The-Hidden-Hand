@@ -68,6 +68,13 @@ function startRound() {
   broadcast();
 }
 
+function allFullTeamsSubmitted() {
+  const teams = Object.values(state.teams);
+  const fullTeams = teams.filter((t) => t.slots.p1.participantId && t.slots.p2.participantId);
+  if (fullTeams.length === 0) return false;
+  return fullTeams.every((t) => t.submissions.p1 && t.submissions.p2);
+}
+
 function reveal() {
   Object.values(state.teams).forEach((team) => {
     const bothJoined = team.slots.p1.participantId && team.slots.p2.participantId;
@@ -88,7 +95,10 @@ io.on('connection', (socket) => {
 
   socket.on('facilitator:setup_teams', ({ count }) => setupTeams(count));
   socket.on('facilitator:start_round', () => startRound());
-  socket.on('facilitator:reveal', () => reveal());
+  socket.on('facilitator:reveal', () => {
+    if (!allFullTeamsSubmitted()) return;
+    reveal();
+  });
   socket.on('facilitator:reset', () =>
     setupTeams(Object.keys(state.teams).length || 10)
   );

@@ -134,7 +134,11 @@ function Participant({ state }) {
       </p>
       <div className="score">{myScore} pts</div>
 
-      {bothJoined && !state.revealed && (
+      {bothJoined && state.round === 0 && (
+        <p className="pending-flag">Both players are in. Waiting for the facilitator to start round 1.</p>
+      )}
+
+      {bothJoined && state.round > 0 && !state.revealed && (
         <div className="choice-row">
           <button
             className={myChoice === 'C' ? 'choice good active' : 'choice good'}
@@ -164,6 +168,24 @@ function Participant({ state }) {
           <p className="score">+{slot === 'p1' ? lastRound.pts1 : lastRound.pts2} this round</p>
         </div>
       )}
+    </div>
+  );
+}
+
+function PlayerCell({ name, submitted, showResult, move }) {
+  if (!name) {
+    return <span className="player-name muted">Empty</span>;
+  }
+  return (
+    <div className="player-cell">
+      <span className="player-name">{name}</span>
+      {showResult && (
+        <span className={move === 'C' ? 'tag tag-good' : 'tag tag-bad'}>
+          {move === 'C' ? 'Cooperated' : 'Defected'}
+        </span>
+      )}
+      {!showResult && submitted && <span className="tag tag-neutral">Submitted</span>}
+      {!showResult && !submitted && <span className="tag tag-waiting">Waiting</span>}
     </div>
   );
 }
@@ -203,13 +225,21 @@ function Dashboard({ state }) {
               return (
                 <tr key={team.name}>
                   <td>{team.name}</td>
-                  <td className={showResult ? (lastRound.moveP1 === 'C' ? 'good' : 'bad') : ''}>
-                    {p1.name || '—'}
-                    {showResult ? ` (${lastRound.moveP1})` : team.submissions.p1 ? ' · submitted' : ''}
+                  <td>
+                    <PlayerCell
+                      name={p1.name}
+                      submitted={!!team.submissions.p1}
+                      showResult={showResult}
+                      move={lastRound && lastRound.moveP1}
+                    />
                   </td>
-                  <td className={showResult ? (lastRound.moveP2 === 'C' ? 'good' : 'bad') : ''}>
-                    {p2.name || '—'}
-                    {showResult ? ` (${lastRound.moveP2})` : team.submissions.p2 ? ' · submitted' : ''}
+                  <td>
+                    <PlayerCell
+                      name={p2.name}
+                      submitted={!!team.submissions.p2}
+                      showResult={showResult}
+                      move={lastRound && lastRound.moveP2}
+                    />
                   </td>
                   <td>{showResult ? `${lastRound.pts1} / ${lastRound.pts2}` : '—'}</td>
                 </tr>
@@ -296,9 +326,9 @@ function Facilitator({ state }) {
         <button
           className="btn primary"
           onClick={() => socket.emit('facilitator:reveal')}
-          disabled={state.revealed}
+          disabled={state.revealed || fullTeams.length === 0 || submittedCount < fullTeams.length}
         >
-          Reveal ({submittedCount}/{fullTeams.length} teams ready)
+          Reveal Scores ({submittedCount}/{fullTeams.length} teams ready)
         </button>
         <button className="btn ghost" onClick={() => socket.emit('facilitator:reset')}>
           Reset
@@ -315,22 +345,35 @@ function Facilitator({ state }) {
           </tr>
         </thead>
         <tbody>
-          {teams.map((team) => (
-            <tr key={team.name}>
-              <td>{team.name}</td>
-              <td>{team.slots.p1.name || 'Empty'}</td>
-              <td>{team.slots.p2.name || 'Empty'}</td>
-              <td>
-                {!team.slots.p1.participantId || !team.slots.p2.participantId
-                  ? 'Waiting for players'
-                  : team.submissions.p1 && team.submissions.p2
-                  ? 'Both submitted'
-                  : team.submissions.p1 || team.submissions.p2
-                  ? 'One submitted'
-                  : 'Waiting'}
-              </td>
-            </tr>
-          ))}
+          {teams.map((team) => {
+            const bothIn = team.slots.p1.participantId && team.slots.p2.participantId;
+            const bothSubmitted = team.submissions.p1 && team.submissions.p2;
+            const oneSubmitted = team.submissions.p1 || team.submissions.p2;
+            let statusClass = 'tag-waiting';
+            let statusText = 'Waiting for players';
+            if (bothIn) {
+              if (bothSubmitted) {
+                statusClass = 'tag-good';
+                statusText = 'Both submitted';
+              } else if (oneSubmitted) {
+                statusClass = 'tag-neutral';
+                statusText = 'One submitted';
+              } else {
+                statusClass = 'tag-waiting';
+                statusText = 'Waiting';
+              }
+            }
+            return (
+              <tr key={team.name}>
+                <td>{team.name}</td>
+                <td>{team.slots.p1.name || 'Empty'}</td>
+                <td>{team.slots.p2.name || 'Empty'}</td>
+                <td>
+                  <span className={`tag ${statusClass}`}>{statusText}</span>
+                </td>
+              </tr>
+            );
+          })}
         </tbody>
       </table>
     </div>
@@ -362,6 +405,14 @@ const CSS = `
 .dashboard-card { max-width: 1400px; margin: 0 auto; display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
 .dashboard-col { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 28px 32px; }
 .leader-row td { color: var(--orange); font-weight: 700; }
+.player-cell { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; }
+.player-name { font-weight: 600; }
+.player-name.muted { color: var(--muted); font-weight: 400; }
+.tag { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 11px; font-weight: 600; letter-spacing: 0.02em; }
+.tag-good { background: rgba(76, 175, 125, 0.18); color: var(--good); }
+.tag-bad { background: rgba(224, 104, 74, 0.18); color: var(--bad); }
+.tag-neutral { background: rgba(242, 153, 74, 0.18); color: var(--orange); }
+.tag-waiting { background: rgba(185, 198, 222, 0.12); color: var(--muted); }
 @media (max-width: 900px) {
   .dashboard-card { grid-template-columns: 1fr; }
 }

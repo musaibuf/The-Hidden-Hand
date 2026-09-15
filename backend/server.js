@@ -90,15 +90,24 @@ function reveal() {
   broadcast();
 }
 
+function advance() {
+  if (state.round === 0) {
+    startRound();
+    return;
+  }
+  if (state.revealed) return; // already revealed, waiting on the auto-advance
+  if (!allFullTeamsSubmitted()) return;
+  reveal();
+  setTimeout(() => {
+    startRound();
+  }, 7000);
+}
+
 io.on('connection', (socket) => {
   socket.emit('state_update', state);
 
   socket.on('facilitator:setup_teams', ({ count }) => setupTeams(count));
-  socket.on('facilitator:start_round', () => startRound());
-  socket.on('facilitator:reveal', () => {
-    if (!allFullTeamsSubmitted()) return;
-    reveal();
-  });
+  socket.on('facilitator:advance', () => advance());
   socket.on('facilitator:reset', () =>
     setupTeams(Object.keys(state.teams).length || 10)
   );

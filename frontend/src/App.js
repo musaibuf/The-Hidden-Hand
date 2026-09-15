@@ -325,6 +325,20 @@ function Facilitator({ state }) {
   const submittedCount = fullTeams.filter(
     (t) => t.submissions.p1 && t.submissions.p2
   ).length;
+  const allSubmitted = fullTeams.length > 0 && submittedCount === fullTeams.length;
+
+  let advanceLabel;
+  let advanceDisabled;
+  if (state.round === 0) {
+    advanceLabel = 'Start Round 1';
+    advanceDisabled = false;
+  } else if (state.revealed) {
+    advanceLabel = `Revealed — Round ${state.round + 1} starting automatically…`;
+    advanceDisabled = true;
+  } else {
+    advanceLabel = `Reveal Score & Round ${state.round + 1} (${submittedCount}/${fullTeams.length} ready)`;
+    advanceDisabled = !allSubmitted;
+  }
 
   return (
     <div className="card">
@@ -346,20 +360,20 @@ function Facilitator({ state }) {
       </div>
 
       <div className="actions">
-        <button className="btn primary" onClick={() => socket.emit('facilitator:start_round')}>
-          Start round {state.round + 1}
-        </button>
         <button
           className="btn primary"
-          onClick={() => socket.emit('facilitator:reveal')}
-          disabled={state.revealed || fullTeams.length === 0 || submittedCount < fullTeams.length}
+          onClick={() => socket.emit('facilitator:advance')}
+          disabled={advanceDisabled}
         >
-          Reveal Scores ({submittedCount}/{fullTeams.length} teams ready)
+          {advanceLabel}
         </button>
         <button className="btn ghost" onClick={() => socket.emit('facilitator:reset')}>
           Reset
         </button>
       </div>
+      {state.revealed && (
+        <p className="note">Scores are on screen now. The next round opens automatically in a few seconds.</p>
+      )}
 
       <table className="history">
         <thead>

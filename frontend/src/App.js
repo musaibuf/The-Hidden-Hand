@@ -124,19 +124,26 @@ function Participant({ state }) {
 
   const lastRound = team.history[team.history.length - 1];
   const showResult = state.revealed && lastRound && lastRound.round === state.round;
+  const myMove = showResult ? (slot === 'p1' ? lastRound.moveP1 : lastRound.moveP2) : null;
+  const partnerMove = showResult ? (slot === 'p1' ? lastRound.moveP2 : lastRound.moveP1) : null;
+  const myPts = showResult ? (slot === 'p1' ? lastRound.pts1 : lastRound.pts2) : null;
+
+  function statusLine() {
+    if (!partner.participantId) return 'Waiting for your partner to join';
+    if (showResult) return `Round ${state.round} complete`;
+    if (state.round === 0) return 'Waiting for the facilitator to start round 1';
+    if (myChoice) return `Choice locked in — waiting on ${partner.name}`;
+    return `Playing against ${partner.name}`;
+  }
 
   return (
     <div className="card">
       <h2>{team.name}</h2>
-      <p className="note">
-        Round {state.round} · you are {slot === 'p1' ? 'Player 1' : 'Player 2'} ·{' '}
-        {partner.participantId ? `playing against ${partner.name}` : 'waiting for your partner to join'}
-      </p>
-      <div className="score">{myScore} pts</div>
-
-      {bothJoined && state.round === 0 && (
-        <p className="pending-flag">Both players are in. Waiting for the facilitator to start round 1.</p>
-      )}
+      <p className="note">{statusLine()}</p>
+      <div className="score-block">
+        <span className="score-label">Your score</span>
+        <span className="score">{myScore} pts</span>
+      </div>
 
       {bothJoined && state.round > 0 && !state.revealed && (
         <div className="choice-row">
@@ -157,15 +164,21 @@ function Participant({ state }) {
         </div>
       )}
 
-      {myChoice && !state.revealed && (
-        <p className="pending-flag">Choice locked in. Waiting on the room.</p>
-      )}
-
       {showResult && (
         <div className="reveal-box">
-          <p>You: {slot === 'p1' ? lastRound.moveP1 : lastRound.moveP2}</p>
-          <p>{partner.name}: {slot === 'p1' ? lastRound.moveP2 : lastRound.moveP1}</p>
-          <p className="score">+{slot === 'p1' ? lastRound.pts1 : lastRound.pts2} this round</p>
+          <div className="reveal-row">
+            <span>You</span>
+            <span className={myMove === 'C' ? 'tag tag-good' : 'tag tag-bad'}>
+              {myMove === 'C' ? 'Cooperated' : 'Defected'}
+            </span>
+          </div>
+          <div className="reveal-row">
+            <span>{partner.name}</span>
+            <span className={partnerMove === 'C' ? 'tag tag-good' : 'tag tag-bad'}>
+              {partnerMove === 'C' ? 'Cooperated' : 'Defected'}
+            </span>
+          </div>
+          <p className="reveal-points">+{myPts} this round</p>
         </div>
       )}
     </div>
@@ -401,7 +414,7 @@ const CSS = `
 .logo { height: 40px; width: auto; }
 .titleblock h1 { font-size: 28px; margin: 0; letter-spacing: -0.02em; color: var(--orange); }
 .titleblock p { margin: 2px 0 0; color: var(--muted); font-size: 14px; }
-.card { max-width: 860px; margin: 0 auto; background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 28px 32px; }
+.card { max-width: 860px; margin: 0 auto; background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 32px 36px; box-shadow: 0 8px 24px rgba(0,0,0,0.25); }
 .dashboard-card { max-width: 1400px; margin: 0 auto; display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
 .dashboard-col { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 28px 32px; }
 .leader-row td { color: var(--orange); font-weight: 700; }
@@ -416,7 +429,7 @@ const CSS = `
 @media (max-width: 900px) {
   .dashboard-card { grid-template-columns: 1fr; }
 }
-.card h2 { margin-top: 0; font-size: 20px; color: var(--white); }
+.card h2 { margin: 0 0 4px; font-size: 22px; color: var(--white); letter-spacing: -0.01em; }
 .note { color: var(--muted); font-size: 14px; line-height: 1.6; }
 .text-input { width: 100%; padding: 12px; border-radius: 6px; border: 1px solid var(--border); background: var(--bg); color: var(--white); font-size: 15px; margin-bottom: 16px; }
 .team-join-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 8px; }
@@ -424,14 +437,20 @@ const CSS = `
 .team-join-btn:disabled:not(.full) { opacity: 0.5; cursor: not-allowed; }
 .team-join-btn.full { opacity: 0.35; cursor: not-allowed; border-color: var(--bad); }
 .team-join-status { font-size: 12px; color: var(--orange); }
-.score { font-size: 28px; font-weight: 700; margin: 12px 0; color: var(--orange); }
-.choice-row { display: flex; gap: 8px; margin: 16px 0; }
-.choice { flex: 1; padding: 14px; border-radius: 6px; border: 1px solid var(--border); background: none; color: var(--white); cursor: pointer; font-size: 15px; }
+.score-block { display: flex; flex-direction: column; gap: 2px; margin: 16px 0 24px; }
+.score-label { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; }
+.score { font-size: 34px; font-weight: 700; color: var(--orange); }
+.choice-row { display: flex; gap: 12px; margin: 20px 0; }
+.choice { flex: 1; padding: 24px 16px; border-radius: 10px; border: 1px solid var(--border); background: none; color: var(--white); cursor: pointer; font-size: 19px; font-weight: 700; letter-spacing: 0.01em; transition: transform 0.1s ease, background 0.15s ease; }
+.choice:not(:disabled):active { transform: scale(0.97); }
 .choice.good.active { background: var(--good); border-color: var(--good); }
 .choice.bad.active { background: var(--bad); border-color: var(--bad); }
 .choice:disabled { opacity: 0.5; cursor: not-allowed; }
 .pending-flag { font-size: 13px; color: var(--muted); }
-.reveal-box { background: var(--bg); border-radius: 8px; padding: 16px; margin-top: 12px; }
+.reveal-box { background: var(--bg); border: 1px solid var(--border); border-radius: 10px; padding: 20px; margin-top: 20px; }
+.reveal-row { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; font-size: 15px; }
+.reveal-row + .reveal-row { border-top: 1px solid var(--border); }
+.reveal-points { margin: 12px 0 0; font-size: 20px; font-weight: 700; color: var(--orange); text-align: center; }
 .actions { display: flex; align-items: center; gap: 12px; margin: 16px 0; flex-wrap: wrap; }
 .btn { padding: 10px 18px; border-radius: 6px; border: 1px solid var(--border); font-size: 14px; cursor: pointer; color: var(--white); }
 .btn.primary { background: var(--orange-dark); border-color: var(--orange-dark); color: white; }

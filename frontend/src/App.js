@@ -250,8 +250,8 @@ function Dashboard({ state }) {
               const p2 = team.slots.p2;
               return (
                 <tr key={team.name} className={i === 0 && team.totalScore > 0 ? 'leader-row' : ''}>
-                  <td>{team.name}</td>
-                  <td>
+                  <td data-label="Team">{team.name}</td>
+                  <td data-label="Player 1">
                     <PlayerCell
                       name={p1.name}
                       submitted={!!team.submissions.p1}
@@ -259,7 +259,7 @@ function Dashboard({ state }) {
                       move={lastRound && lastRound.moveP1}
                     />
                   </td>
-                  <td>
+                  <td data-label="Player 2">
                     <PlayerCell
                       name={p2.name}
                       submitted={!!team.submissions.p2}
@@ -267,7 +267,7 @@ function Dashboard({ state }) {
                       move={lastRound && lastRound.moveP2}
                     />
                   </td>
-                  <td className="team-score-cell">{team.totalScore}</td>
+                  <td className="team-score-cell" data-label="Team Score">{team.totalScore}</td>
                 </tr>
               );
             })}
@@ -289,10 +289,10 @@ function Dashboard({ state }) {
           <tbody>
             {leaderboard.map((p, i) => (
               <tr key={p.name + p.team} className={i === 0 && p.score > 0 ? 'leader-row' : ''}>
-                <td>{i + 1}</td>
-                <td>{p.name}</td>
-                <td>{p.team}</td>
-                <td>{p.score}</td>
+                <td data-label="Rank">{i + 1}</td>
+                <td data-label="Name">{p.name}</td>
+                <td data-label="Team">{p.team}</td>
+                <td data-label="Score">{p.score}</td>
               </tr>
             ))}
           </tbody>
@@ -409,10 +409,10 @@ function Facilitator({ state }) {
             }
             return (
               <tr key={team.name}>
-                <td>{team.name}</td>
-                <td>{team.slots.p1.name || 'Empty'}</td>
-                <td>{team.slots.p2.name || 'Empty'}</td>
-                <td>
+                <td data-label="Team">{team.name}</td>
+                <td data-label="Player 1">{team.slots.p1.name || 'Empty'}</td>
+                <td data-label="Player 2">{team.slots.p2.name || 'Empty'}</td>
+                <td data-label="Status">
                   <span className={`tag ${statusClass}`}>{statusText}</span>
                 </td>
               </tr>
@@ -460,6 +460,26 @@ const CSS = `
 .tag-waiting { background: rgba(185, 198, 222, 0.12); color: var(--muted); }
 @media (max-width: 900px) {
   .dashboard-card { grid-template-columns: 1fr; }
+}
+@media (max-width: 600px) {
+  .app { padding: 20px 14px 48px; }
+  .topbar { flex-direction: column; text-align: center; gap: 10px; margin-bottom: 20px; }
+  .topbar-left { flex-direction: column; gap: 8px; }
+  .card, .dashboard-col { padding: 20px; }
+  .card h2 { text-align: center; }
+  .note { text-align: center; }
+  .score-row { justify-content: center; }
+  .actions { justify-content: center; }
+  .rounds-label { justify-content: space-between; width: 100%; }
+  .btn { width: 100%; }
+  .actions { flex-direction: column; align-items: stretch; }
+  .team-join-grid { grid-template-columns: repeat(2, 1fr); }
+
+  .history thead { display: none; }
+  .history, .history tbody, .history tr, .history td { display: block; width: 100%; }
+  .history tr { border: 1px solid var(--border); border-radius: 10px; margin-bottom: 12px; padding: 10px 14px; }
+  .history td { border: none; padding: 6px 0; display: flex; justify-content: space-between; align-items: center; text-align: right; }
+  .history td::before { content: attr(data-label); color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: 0.04em; text-align: left; }
 }
 .card h2 { margin: 0 0 4px; font-size: 22px; color: var(--white); letter-spacing: -0.01em; }
 .note { color: var(--muted); font-size: 14px; line-height: 1.6; }

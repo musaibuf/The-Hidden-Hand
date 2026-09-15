@@ -140,9 +140,17 @@ function Participant({ state }) {
     <div className="card">
       <h2>{team.name}</h2>
       <p className="note">{statusLine()}</p>
-      <div className="score-block">
-        <span className="score-label">Your score</span>
-        <span className="score">{myScore} pts</span>
+      <div className="score-row">
+        <div className="score-block">
+          <span className="score-label">Your score</span>
+          <span className="score">{myScore} pts</span>
+        </div>
+        {partner.participantId && (
+          <div className="score-block">
+            <span className="score-label">{partner.name}'s score</span>
+            <span className="score score-partner">{partner.score} pts</span>
+          </div>
+        )}
       </div>
 
       {bothJoined && state.round > 0 && !state.revealed && (
@@ -216,6 +224,11 @@ function Dashboard({ state }) {
     )
     .sort((a, b) => b.score - a.score);
 
+  const teamsSorted = Object.values(state.teams)
+    .filter((team) => team && team.slots)
+    .map((team) => ({ ...team, totalScore: team.slots.p1.score + team.slots.p2.score }))
+    .sort((a, b) => b.totalScore - a.totalScore);
+
   return (
     <div className="dashboard-card">
       <div className="dashboard-col">
@@ -226,17 +239,17 @@ function Dashboard({ state }) {
               <th>Team</th>
               <th>Player 1</th>
               <th>Player 2</th>
-              <th>Result</th>
+              <th>Team Score</th>
             </tr>
           </thead>
           <tbody>
-            {Object.values(state.teams).filter((team) => team && team.slots).map((team) => {
+            {teamsSorted.map((team, i) => {
               const lastRound = team.history[team.history.length - 1];
               const showResult = state.revealed && lastRound && lastRound.round === state.round;
               const p1 = team.slots.p1;
               const p2 = team.slots.p2;
               return (
-                <tr key={team.name}>
+                <tr key={team.name} className={i === 0 && team.totalScore > 0 ? 'leader-row' : ''}>
                   <td>{team.name}</td>
                   <td>
                     <PlayerCell
@@ -254,7 +267,7 @@ function Dashboard({ state }) {
                       move={lastRound && lastRound.moveP2}
                     />
                   </td>
-                  <td>{showResult ? `${lastRound.pts1} / ${lastRound.pts2}` : '—'}</td>
+                  <td className="team-score-cell">{team.totalScore}</td>
                 </tr>
               );
             })}
@@ -418,6 +431,7 @@ const CSS = `
 .dashboard-card { max-width: 1400px; margin: 0 auto; display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
 .dashboard-col { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 28px 32px; }
 .leader-row td { color: var(--orange); font-weight: 700; }
+.team-score-cell { font-size: 16px; font-weight: 700; color: var(--orange); }
 .player-cell { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; }
 .player-name { font-weight: 600; }
 .player-name.muted { color: var(--muted); font-weight: 400; }
@@ -437,9 +451,11 @@ const CSS = `
 .team-join-btn:disabled:not(.full) { opacity: 0.5; cursor: not-allowed; }
 .team-join-btn.full { opacity: 0.35; cursor: not-allowed; border-color: var(--bad); }
 .team-join-status { font-size: 12px; color: var(--orange); }
-.score-block { display: flex; flex-direction: column; gap: 2px; margin: 16px 0 24px; }
+.score-row { display: flex; gap: 32px; margin: 16px 0 24px; }
+.score-block { display: flex; flex-direction: column; gap: 2px; }
 .score-label { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; }
 .score { font-size: 34px; font-weight: 700; color: var(--orange); }
+.score-partner { color: var(--muted); font-size: 28px; }
 .choice-row { display: flex; gap: 12px; margin: 20px 0; }
 .choice { flex: 1; padding: 24px 16px; border-radius: 10px; border: 1px solid var(--border); background: none; color: var(--white); cursor: pointer; font-size: 19px; font-weight: 700; letter-spacing: 0.01em; transition: transform 0.1s ease, background 0.15s ease; }
 .choice:not(:disabled):active { transform: scale(0.97); }

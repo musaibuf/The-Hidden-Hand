@@ -319,7 +319,8 @@ function Dashboard({ state }) {
 }
 
 function Facilitator({ state }) {
-  const [count, setCount] = useState(10);
+  const [countText, setCountText] = useState('10');
+  const count = Math.min(50, Math.max(1, parseInt(countText, 10) || 1));
   const teams = Object.values(state.teams).filter((team) => team && team.slots);
   const fullTeams = teams.filter((t) => t.slots.p1.participantId && t.slots.p2.participantId);
   const submittedCount = fullTeams.filter(
@@ -349,9 +350,12 @@ function Facilitator({ state }) {
           Number of teams
           <input
             type="number"
+            inputMode="numeric"
+            pattern="[0-9]*"
             min="1"
-            value={count}
-            onChange={(e) => setCount(Number(e.target.value) || 1)}
+            max="50"
+            value={countText}
+            onChange={(e) => setCountText(e.target.value)}
           />
         </label>
         <button className="btn primary" onClick={() => socket.emit('facilitator:setup_teams', { count })}>

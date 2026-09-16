@@ -131,7 +131,7 @@ function Participant({ state }) {
   function statusLine() {
     const finalPrefix = state.finalRoundActive && !showResult ? 'Final round — ' : '';
     if (!partner.participantId) return finalPrefix + 'Waiting for your partner to join';
-    if (showResult) return `Round ${state.round} complete` + (state.gameOver ? ' — workshop finished' : '');
+    if (showResult) return `Round ${state.round} complete` + (state.gameOver ? ' — activity finished' : '');
     if (state.round === 0) return 'Waiting for the facilitator to start round 1';
     if (myChoice) return finalPrefix + `Choice locked in — waiting on ${partner.name}`;
     return finalPrefix + `Playing against ${partner.name}`;
@@ -333,7 +333,7 @@ function Facilitator({ state }) {
   let advanceLabel;
   let advanceDisabled;
   if (state.gameOver) {
-    advanceLabel = 'Workshop complete';
+    advanceLabel = 'Activity finished';
     advanceDisabled = true;
   } else if (state.round === 0) {
     advanceLabel = 'Start Round 1';
@@ -400,7 +400,7 @@ function Facilitator({ state }) {
         <p className="note">This is the final round. Scores lock automatically the moment everyone submits.</p>
       )}
       {state.gameOver && (
-        <p className="note">Workshop complete. Final scores are locked on the dashboard.</p>
+        <p className="note">Activity finished. Final scores are locked on the dashboard.</p>
       )}
       {state.revealed && !state.gameOver && (
         <p className="note">Scores are on screen now. The next round opens automatically in a few seconds.</p>

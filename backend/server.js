@@ -27,13 +27,21 @@ let state = {
   teams: {},   // teamId -> { name, slots: { p1, p2 }, submissions: { p1, p2 }, history: [] }
   round: 0,
   revealed: false,
+  finalRoundActive: false,
+  gameOver: false,
 };
+
+let pendingTimer = null;
 
 function broadcast() {
   io.emit('state_update', state);
 }
 
 function setupTeams(count) {
+  if (pendingTimer) {
+    clearTimeout(pendingTimer);
+    pendingTimer = null;
+  }
   const teams = {};
   for (let i = 1; i <= count; i++) {
     teams[i] = {
@@ -43,7 +51,7 @@ function setupTeams(count) {
       history: [],
     };
   }
-  state = { teams, round: 0, revealed: false };
+  state = { teams, round: 0, revealed: false, finalRoundActive: false, gameOver: false };
   broadcast();
 }
 
@@ -59,13 +67,10 @@ function findParticipant(participantId) {
   return null;
 }
 
-function startRound() {
-  state.round += 1;
-  state.revealed = false;
-  Object.values(state.teams).forEach((team) => {
-    team.submissions = { p1: null, p2: null };
-  });
-  broadcast();
+function allTeamsFull() {
+  const teams = Object.values(state.teams);
+  if (teams.length === 0) return false;
+  return teams.every((t) => t.slots.p1.participantId && t.slots.p2.participantId);
 }
 
 function allFullTeamsSubmitted() {
@@ -73,6 +78,15 @@ function allFullTeamsSubmitted() {
   const fullTeams = teams.filter((t) => t.slots.p1.participantId && t.slots.p2.participantId);
   if (fullTeams.length === 0) return false;
   return fullTeams.every((t) => t.submissions.p1 && t.submissions.p2);
+}
+
+function startRound() {
+  state.round += 1;
+  state.revealed = false;
+  Object.values(state.teams).forEach((team) => {
+    team.submissions = { p1: null, p2: null };
+  });
+  broadcast();
 }
 
 function reveal() {
@@ -91,16 +105,40 @@ function reveal() {
 }
 
 function advance() {
+  if (state.gameOver) return;
   if (state.round === 0) {
+    if (!allTeamsFull()) return; // every team must be full before round 1 can start
     startRound();
     return;
   }
   if (state.revealed) return; // already revealed, waiting on the auto-advance
   if (!allFullTeamsSubmitted()) return;
   reveal();
-  setTimeout(() => {
+  if (state.finalRoundActive) {
+    state.gameOver = true;
+    broadcast();
+  } else {
+    pendingTimer = setTimeout(() => {
+      pendingTimer = null;
+      startRound();
+    }, 7000);
+  }
+}
+
+function markLastRound() {
+  if (state.gameOver || state.finalRoundActive) return;
+  if (state.revealed) {
+    if (pendingTimer) {
+      clearTimeout(pendingTimer);
+      pendingTimer = null;
+    }
     startRound();
-  }, 7000);
+  } else if (state.round === 0) {
+    if (!allTeamsFull()) return;
+    startRound();
+  }
+  state.finalRoundActive = true;
+  broadcast();
 }
 
 io.on('connection', (socket) => {
@@ -108,6 +146,7 @@ io.on('connection', (socket) => {
 
   socket.on('facilitator:setup_teams', ({ count }) => setupTeams(count));
   socket.on('facilitator:advance', () => advance());
+  socket.on('facilitator:mark_last_round', () => markLastRound());
   socket.on('facilitator:reset', () =>
     setupTeams(Object.keys(state.teams).length || 10)
   );
@@ -123,13 +162,17 @@ io.on('connection', (socket) => {
   });
 
   socket.on('participant:submit', ({ participantId, choice }) => {
-    if (state.revealed) return;
+    if (state.revealed || state.gameOver) return;
     const found = findParticipant(participantId);
     if (!found) return;
     const { teamId, slot } = found;
     const team = state.teams[teamId];
     if (team.submissions[slot]) return; // already locked
     team.submissions[slot] = choice;
+    if (state.finalRoundActive && allFullTeamsSubmitted()) {
+      reveal();
+      state.gameOver = true;
+    }
     broadcast();
   });
 });

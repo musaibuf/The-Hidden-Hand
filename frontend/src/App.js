@@ -129,11 +129,12 @@ function Participant({ state }) {
   const myPts = showResult ? (slot === 'p1' ? lastRound.pts1 : lastRound.pts2) : null;
 
   function statusLine() {
-    if (!partner.participantId) return 'Waiting for your partner to join';
-    if (showResult) return `Round ${state.round} complete`;
+    const finalPrefix = state.finalRoundActive && !showResult ? 'Final round — ' : '';
+    if (!partner.participantId) return finalPrefix + 'Waiting for your partner to join';
+    if (showResult) return `Round ${state.round} complete` + (state.gameOver ? ' — workshop finished' : '');
     if (state.round === 0) return 'Waiting for the facilitator to start round 1';
-    if (myChoice) return `Choice locked in — waiting on ${partner.name}`;
-    return `Playing against ${partner.name}`;
+    if (myChoice) return finalPrefix + `Choice locked in — waiting on ${partner.name}`;
+    return finalPrefix + `Playing against ${partner.name}`;
   }
 
   return (
@@ -327,17 +328,25 @@ function Facilitator({ state }) {
     (t) => t.submissions.p1 && t.submissions.p2
   ).length;
   const allSubmitted = fullTeams.length > 0 && submittedCount === fullTeams.length;
+  const allTeamsFull = teams.length > 0 && fullTeams.length === teams.length;
 
   let advanceLabel;
   let advanceDisabled;
-  if (state.round === 0) {
+  if (state.gameOver) {
+    advanceLabel = 'Workshop complete';
+    advanceDisabled = true;
+  } else if (state.round === 0) {
     advanceLabel = 'Start Round 1';
-    advanceDisabled = false;
+    advanceDisabled = !allTeamsFull;
   } else if (state.revealed) {
-    advanceLabel = `Revealed — Round ${state.round + 1} starting automatically…`;
+    advanceLabel = state.finalRoundActive
+      ? 'Final round revealed'
+      : `Revealed — Round ${state.round + 1} starting automatically…`;
     advanceDisabled = true;
   } else {
-    advanceLabel = `Reveal Score & Round ${state.round + 1} (${submittedCount}/${fullTeams.length} ready)`;
+    advanceLabel = state.finalRoundActive
+      ? `Final Round — waiting on submissions (${submittedCount}/${fullTeams.length})`
+      : `Reveal Score & Round ${state.round + 1} (${submittedCount}/${fullTeams.length} ready)`;
     advanceDisabled = !allSubmitted;
   }
 
@@ -363,6 +372,12 @@ function Facilitator({ state }) {
         </button>
       </div>
 
+      {state.round === 0 && !allTeamsFull && teams.length > 0 && (
+        <p className="note">
+          Waiting for all teams to fill up ({fullTeams.length}/{teams.length} full) before Round 1 can start.
+        </p>
+      )}
+
       <div className="actions">
         <button
           className="btn primary"
@@ -371,11 +386,23 @@ function Facilitator({ state }) {
         >
           {advanceLabel}
         </button>
+        {state.round >= 1 && !state.finalRoundActive && !state.gameOver && (
+          <button className="btn ghost" onClick={() => socket.emit('facilitator:mark_last_round')}>
+            Proceed to Last Round
+          </button>
+        )}
         <button className="btn ghost" onClick={() => socket.emit('facilitator:reset')}>
           Reset
         </button>
       </div>
-      {state.revealed && (
+
+      {state.finalRoundActive && !state.gameOver && (
+        <p className="note">This is the final round. Scores lock automatically the moment everyone submits.</p>
+      )}
+      {state.gameOver && (
+        <p className="note">Workshop complete. Final scores are locked on the dashboard.</p>
+      )}
+      {state.revealed && !state.gameOver && (
         <p className="note">Scores are on screen now. The next round opens automatically in a few seconds.</p>
       )}
 
